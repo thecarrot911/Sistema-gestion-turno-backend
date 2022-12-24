@@ -1,4 +1,5 @@
 const { spawn } = require("child_process");
+const { json } = require("express/lib/response");
 const { planificacionModel } = require("../../model/planificacionModel");
 
 const generarplanificacion = async(req, res) =>{
@@ -8,8 +9,11 @@ const generarplanificacion = async(req, res) =>{
         let empleados = req.body.empleados;
         let cant_empleados = empleados.length
         let itinerario_json = req.body.itinerario;
-        let control = true;
-        //let control = await planificacionModel.dias_mes_anterior(mes);
+        let planificacionMes = await planificacionModel.dias_mes_anterior(anio,mes);
+
+        let control = planificacionMes.control;
+        let planificacion = planificacionMes.consulta_planificacion;
+
         if(control){
             if(itinerario_json[0].dia== '' || ( itinerario_json[0].aviones == null && itinerario_json[0].dia == null )){
                 itinerario = 0
@@ -24,8 +28,7 @@ const generarplanificacion = async(req, res) =>{
                     itinerario.push(itinerario_array)
                 }
             }
-            //let ultimo_empleado = await planificacionModel.ultimo_empleado_planificacion_anterior()
-            //console.log(ultimo_empleado)
+
             let command = await spawn('python', ['source/app/planificacion/python/script.py',anio,mes,cant_empleados,itinerario])
             let planificacion = new Array(); //verificador para que la variable sea disitnto de vacio y tenga una respuesta.
             
@@ -39,15 +42,44 @@ const generarplanificacion = async(req, res) =>{
             });
             command.on('close', async function(code){
                 console.log("Child process close")
-                obj = planificacion[0].replace(/'/g,"\""); 
-                turno_empleado = await planificacionModel.asignar_turno_empleado(planificacion[0],empleados);
-                jsonsend = JSON.parse(turno_empleado);
-                planificacion_id = await planificacionModel.guardar(mes, anio, jsonsend);
-                let json = {}
+                //obj = planificacion[0].replace(/'/g,"\""); 
+
+                let ultimo_empleado = await planificacionModel.ultimo_empleado_planificacion_anterior()
+
+                jsonsend = JSON.parse(planificacion[0]);
+
+                //turno_empleado = await planificacionModel.asignar_turno_empleado(planificacion[0],empleados);
+                //jsonsend = JSON.parse(turno_empleado);
+                
+                ultimaPlanificacion = await planificacionModel.mostrar_ultima(anio)
+                let indice = ultimaPlanificacion.planificacion.length - ultimaPlanificacion.planificacion.length%7
+                
+                let k = 0;
+                for(let i = indice; i < ultimaPlanificacion.planificacion.length ;i++ ){
+                    jsonsend[k].empleados = ultimaPlanificacion.planificacion[i].empleados
+                    k++
+                }
+                
+                planificacionEmpleado = await planificacionModel.asignar_turno_empleado(jsonsend ,empleados, k, ultimo_empleado);
+                
+                console.log(planificacionEmpleado)
+                //planificacion_id = await planificacionModel.guardar(mes, anio, jsonsend);
+                
+                //ultimaPlanificacion = await planificacionModel.mostrar_ultima(anio)
+
+
+                /*let json = {}
                 json.planificacion_id = planificacion_id;
                 json.planificacion = jsonsend;
                 let json_send = JSON.stringify(json)
                 return res.send(json_send);
+                console.log(ultimaPlanificacion.data)*/
+
+                return res.json({
+                    error: false,
+                    msg: "Última planificación",
+                    data: jsonsend
+                });
             });
             command.on('error', function(err){
                 console.log('child process error')
@@ -57,6 +89,7 @@ const generarplanificacion = async(req, res) =>{
         }
         else{
             meses_anio = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre", "Diciembre"]
+            
             return res.json({
                 error: true,
                 msg: 'Ya existe una planificación para el mes de '+meses_anio[mes-1]

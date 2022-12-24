@@ -19,28 +19,72 @@ const ultimo_empleado_planificacion_anterior = async()=>{
     FROM ${process.env.NOMBRE_BD}.empleado empleado
     WHERE empleado.dia_id = ${consulta_ultimo_dia[0].dia_id} and turno='23:00 a 07:00';
     `
+
+    /*let string_sql_empleado = 
+    `SELECT empleado.nombre 
+    FROM ${process.env.NOMBRE_BD}.empleado empleado
+    WHERE empleado.dia_id = ${consulta_ultimo_dia[0].dia_id} and turno='23:00 a 07:00';
+    `*/
     consulta_empleado_ultimo_dia = await conexion.query(string_sql_empleado)
     return consulta_empleado_ultimo_dia
 }
 
-const dias_mes_anterior = async(numero_mes)=>{
+const dias_mes_anterior = async(anio,numero_mes)=>{
     let meses = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre", "Diciembre"]
-    let mes_planificacion = meses[mes[numero_mes]];
-    console.log(mes_planificacion)
-    return false;
+    let mes_planificacion = meses[numero_mes-1];
+    
+    let string_sql = 
+    `
+    SELECT * FROM  ${process.env.NOMBRE_BD}.planificacion 
+    WHERE month = '${mes_planificacion}' and year = ${anio};
+    `
+
+    let consulta_planificacion = await conexion.query(string_sql);
+    let control;
+
+    if(consulta_planificacion.length == 0) control = true;
+    else control = false
+
+    return {control , consulta_planificacion};
 };
 
-const asignar_turno_empleado = async(obj, empleados)=>{
+const asignar_turno_empleado = async(planificacion, empleados, indice,ultimo_empleado)=>{
     let turno = ['"Libre"','"07:00 a 15:00"','"15:00 a 23:00"','"23:00 a 07:00"'];
+    let array_empleados = new Array();
+    let array_ultimoTurno = new Array()
+    
+    
+    for(let x=0;x<empleados.length;x++){
+        if(planificacion[indice].empleados[x].turno==3){
+            array_ultimoTurno.push(x)
+        }
+    }
+    console.log(planificacion[indice].empleados)
+    console.log(array_ultimoTurno);
 
-    let array_empleados = new Array(5);
-    array_empleados[0] = empleados[0].nombre 
-    array_empleados[1] = empleados[1].nombre
-    array_empleados[2] = empleados[2].nombre
-    array_empleados[3] = empleados[3].nombre
-    array_empleados[4] = empleados[4].nombre 
+    for(let i=0;i<empleados.length;i++){
+        for(let j=0;j<ultimo_empleado.length;j++){
+            if(empleados[i].nombre == ultimo_empleado[0].nombre){
 
-    array_empleados = array_empleados.sort(function() {return Math.random() - 0.5});
+            }
+            else{
+
+            }
+        }
+    }
+
+    /*for(let i = indice; i<planificacion.length ;i++){
+        for(let k = 0; k<empleados.length ;k++){
+            if(typeof(planificacion[i].empleados[k].nombre)!=Number && array_empleados[k] != ultimo_empleado[0].nombre && planificacion[i].empleados[k].turno != 3){
+                planificacion[i].empleados[k].nombre = array_empleados[k].nombre
+            }
+            else{
+                console.log(typeof(planificacion[i].empleados[k].nombre))
+            }
+        }
+    }*/
+
+    /*array_empleados = array_empleados.sort(function() {return Math.random() - 0.5});
 
     //Asignación de turno
     for (i = 1;i<=array_empleados.length;i++){
@@ -53,7 +97,8 @@ const asignar_turno_empleado = async(obj, empleados)=>{
         obj = obj.replaceAll('"comodin": '+i,'"comodin": '+turno[i])
         obj = obj.replaceAll('"turno_itinerario": '+i,'"turno_itinerario": '+turno[i]);
     }
-    return obj;
+    return obj;*/
+
 };
 
 const guardar = async(month, year, planificacion)=>{
